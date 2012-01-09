@@ -12,13 +12,17 @@ flags.define_bool("exclude_digits", True, "Do we exclude digits")
 flags.define_list("special_stop", [], "Special stop words")
 flags.define_int("min_length", 3, "Minimum length for tokens")
 flags.define_bool("stem", False, "Stem words")
+flags.define_bool("bigram", False, "Use bigrams")
 
 if __name__ == "__main__":
   flags.InitFlags()
+
+  assert not (flags.stem and flags.bigram), "Can't use stem and bigram"
+
   v = VocabCompiler()
   for ii in flags.corpus_parts:
     print ii
     v.addVocab(ii, flags.exclude_stop, flags.special_stop, \
                  flags.exclude_punc, flags.exclude_digits, \
-                 flags.stem, flags.min_length)
+                 flags.stem, flags.bigram, flags.min_length)
   v.writeVocab(flags.output, flags.vocab_limit, flags.min_freq)

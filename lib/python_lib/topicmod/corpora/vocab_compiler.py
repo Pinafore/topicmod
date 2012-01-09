@@ -18,11 +18,27 @@ class VocabCompiler:
 
     def __init__(self):
         self._vocab = defaultdict(FreqDist)
+        self._lookup = defaultdict(dict)
         self._authors = defaultdict(int)
+        self._intersection_vocab = {}
+
+    def generate_intersection(self, frequency_cutoff=10):
+        pivot_language = self._vocab.keys()[0]
+        intersection_vocab = set(self._vocab[pivot_language].keys())
+
+        for ii in self._vocab:
+            intersection_vocab = intersection_vocab & \
+                set(ii for x in self._vocab if self._vocab[ii] > \
+                        frequency_cutoff)
+
+        self._intersection_vocab = dict((x, intersection_vocab.index(x)) \
+                                            for x in intersection_vocab)
+
+        return self._intersection_vocab
 
     def addVocab(self, cp_path, exclude_stop, special_stop,
                  exclude_punctuation, exclude_digits, use_stem,
-                 min_length):
+                 use_bigram, min_length):
         """
         Go through the corpus proto
         """
@@ -34,6 +50,8 @@ class VocabCompiler:
         source = cp.tokens
         if use_stem:
             source = cp.lemmas
+        if use_bigram:
+            source = cp.bigrams
 
         for ii in source:
             lang = ii.language
@@ -74,3 +92,10 @@ class VocabCompiler:
                     num_terms[ii] += 1
                     o.write(u"%i\t%s\n" % (ii, jj))
         o.close()
+
+    def __getitem__(self, val):
+        return self._vocab[val]
+
+    def __iter__(self):
+        for ii in self._vocab:
+            yield ii

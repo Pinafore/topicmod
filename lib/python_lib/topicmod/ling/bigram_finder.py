@@ -9,13 +9,16 @@ from nltk.util import ibigrams
 
 from topicmod.ling.stop import StopWords
 
+
 def text_to_bigram(text, bigrams, normalize):
-    for ii, ww in split_bigrams_with_index(text, bigrams, normalize):
+    for ii, ww in text_to_bigram_offset(text, bigrams, normalize):
         yield ww
+
 
 def iterable_to_bigram(iterable, bigrams, normalize):
     for ii, ww in iterable_to_bigram_offset(iterable, bigrams, normalize):
         yield ww
+
 
 def iterable_to_bigram_offset(iterable, bigrams, normalize):
     previous_words = []
@@ -32,7 +35,7 @@ def iterable_to_bigram_offset(iterable, bigrams, normalize):
                     ngram = "_".join(previous_words)
                     res = (last_position, ngram)
                     yield res
-                    
+
                 previous_words = [current]
 
             last_word = current
@@ -40,13 +43,16 @@ def iterable_to_bigram_offset(iterable, bigrams, normalize):
         stop += 1
 
     if previous_words:
-        yield (last_position, "_".join(previous_words))    
+        yield (last_position, "_".join(previous_words))
+
 
 def text_to_bigram_offset(text, bigrams, normalize):
-    for ii in index_bigrams_from_iterable(text.split()):
+    for ii in iterable_to_bigram_offset(text.split(), bigrams, normalize):
         yield ii
 
+
 class BigramFinder:
+
     def __init__(self, additional_stop = [], remove_stop = [], 
                  min_unigram = 10, min_ngram = 5,
                  exclude=[], language="english"):
@@ -54,7 +60,8 @@ class BigramFinder:
         print("Loading stopwords for %s" % language)
         self._stopwords = StopWords()[language] | set(additional_stop)
         for ii in remove_stop:
-            self._stopwords.remove(ii)
+            if ii in self._stopwords:
+                self._stopwords.remove(ii)
 
         self._exclude_from_bigram = set(exclude)
 
@@ -145,18 +152,17 @@ class BigramFinder:
             if score > cutoff:
                 d[ii] = self._dual[ii]
         return d
-        
-    def print_ngrams(self, limit = 10):
+
+    def print_ngrams(self, limit=10):
         num_tokens = 0
         for ii in self._dual:
             if num_tokens > limit:
                 break
-            print(ii, self._left[ii[0]], self._right[ii[1]], self._dual[ii], self.score(ii))
+            print(ii, self._left[ii[0]], self._right[ii[1]],
+                  self._dual[ii], self.score(ii))
             num_tokens += 1
-                        
 
     def print_unigrams(self, limit=10):
-
         num_tokens = 0
         for ii in self._unigram:
             if num_tokens > limit:

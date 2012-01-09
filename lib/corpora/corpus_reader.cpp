@@ -246,8 +246,7 @@ bool CorpusReader::AddWord(const Document_Sentence_Word& word,
   int token = word.token();
   if (use_lemma_ && word.has_lemma()) token = word.lemma();
   if (use_bigram_) {
-    if (word.bigram() == -1)
-      return false;
+    if (word.bigram() == -1) return false;
     else
       token = word.bigram();
   }

@@ -456,7 +456,7 @@ int WordNet::SearchDepthFirst(const int depth,
                                        traversed,
                                        next_pointers);
     next_pointers.pop_back();
-    max_depth = std::max(child_depth, depth);
+    max_depth = std::max(child_depth, max_depth);
   }
 
   // Finalize that synset's prior.  If we wanted to change the prior

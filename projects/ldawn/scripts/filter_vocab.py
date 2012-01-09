@@ -40,9 +40,10 @@ def filterVocab(infilename, outfilename, thresh):
 
 
 def get_20news_tfidf():
-  vocab_file = "vocab/20_news_all.voc"
-  proto_corpus_dir = "output/20_news_sv/iter_1_all/model_topic_assign/"
-  output_dir = "PMI_stat/20_news_sv/"
+  vocab_file = "vocab/20_news_stem_all.voc"
+  proto_corpus_dir = "output/20_news_stem_tfidf/iter_1_all/model_topic_assign/"
+  #proto_corpus_dir = "../../data/20_news_date/numeric"
+  output_dir = "PMI_stat/20_news_stem_tfidf/"
   get_tfidf(proto_corpus_dir, vocab_file, output_dir)
 
 
@@ -55,16 +56,16 @@ def nyt_tfidf():
 
 if __name__ == "__main__":
 
-  option = 1
+  option = 0
 
   if option == 0:
     # 20 news:
     get_20news_tfidf()
-    infilename = "PMI_stat/20_news_sv/tfidf_mean.txt"
-    outfilename = "PMI_stat/20_news_sv/tfidf_mean.txt.sorted"
+    infilename = "PMI_stat/20_news_stem_tfidf/tfidf_mean.txt"
+    outfilename = "PMI_stat/20_news_stem_tfidf/tfidf_mean.txt.sorted"
     sort_tfidf(infilename, outfilename)
-    outfilename = "vocab/20_news_sv.voc"
-    thresh = 5000 # 0.018
+    outfilename = "vocab/20_news_stem_tfidf.voc"
+    thresh = 10000 # 0.018
     filterVocab(infilename, outfilename, thresh)
 
   elif option == 1:
@@ -75,5 +76,5 @@ if __name__ == "__main__":
     sort_tfidf(infilename, outfilename)
     outfilename = "vocab/nyt_sv.voc"
     thresh = 5000
-    filterVocab(infilename, outfilename, thresh)  
+    filterVocab(infilename, outfilename, thresh)
 

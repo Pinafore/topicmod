@@ -23,34 +23,43 @@ def reduce_speaker(speaker):
     speaker = speaker.replace("GOV. ", "")
     speaker = speaker.replace("SEN. ", "")
     speaker = speaker.replace("REP. ", "")
-    
+
     speaker = speaker.strip()
 
     return speaker
 
+
 class CrossfireCorpus(CorpusReader):
+
     def doc_factory(self, lang, filename):
         yield CrossfireDocument(filename, codecs.open(filename).read(), lang)
 
+
 class CrossfireDocument(DocumentReader):
+
     def __init__(self, filename, raw, id, lang=ENGLISH):
         self._raw = raw
         self.lang = lang
         self._author_map = None
+        self.author = None
 
         self._id = None
         self._title = filename.rsplit("/", 1)[-1].split(".", 1)[0]
 
+    def title(self):
+        return self._title
+
     def author_map(self):
         if self._author_map:
             return self._author_map
-        
+
         authors = {}
         for ii in self._raw.split("\n"):
             if not ":" in ii:
-                print("NO SPEAKER: %s" % ii)
+                if ii.strip() != "":
+                    print("NO SPEAKER: %s" % ii)
                 continue
-            
+
             speaker, turn = ii.split(":", 1)
             speaker = reduce_speaker(speaker)
 
@@ -63,29 +72,38 @@ class CrossfireDocument(DocumentReader):
                             long_form = jj
                 authors[speaker] = long_form
             else:
-                print("INVALID SPEAKER %s %s" % (speaker, turn))
+                if not (ii.startswith("Crossfire") or \
+                            ii.startswith("CNN Crossfire")):
+                    print("INVALID SPEAKER %s %s" % (speaker, turn))
 
         self._author_map = authors
         return authors
 
-    def author_turns(self):
+    def author_turns(self, tokenize=True):
         authors = self.author_map()
 
         for ii in self._raw.split("\n"):
             if not ":" in ii:
-                print("NO SPEAKER: %s" % ii)
+                if ii.strip() != "":
+                    print("NO SPEAKER: %s" % ii)
                 continue
-            
+
             speaker, turn = ii.split(":", 1)
             speaker = reduce_speaker(speaker)
 
             try:
                 if speaker in authors:
-                    yield authors[speaker], [x.translate(punctuation_table, \
-                                                         string.punctuation) \
-                                             for x in word_tokenize(turn.lower())]
+                    if tokenize:
+                        yield authors[speaker], \
+                            [x.translate(punctuation_table, \
+                                             string.punctuation) for x in \
+                                 word_tokenize(turn.lower())]
+                    else:
+                        yield authors[speaker], turn
                 else:
-                    print("BAD TURN: %s" % ii)
+                    if not (ii.startswith("Crossfire") or \
+                                ii.startswith("CNN Crossfire")):
+                        print("BAD TURN: %s" % ii)
             except ValueError:
                 print("BAD ENCODING!")
 
@@ -101,36 +119,26 @@ class CrossfireDocument(DocumentReader):
         for aa, ss in self.author_turns():
             yield ss
 
-    def proto(self, num, language, authors, token_vocab, token_df, lemma_vocab,
-              pos, synsets, stemmer):
-        d = Document()
-        assert language == self.lang
+    def proto(self, num, language, authors, token_vocab, df, lemma_vocab,
+              pos, synsets, stemmer, bigram_vocab={}, bigram_list=None,
+              bigram_normalize=None):
 
-        # Use the given ID if we have it
+        d, tf = self.prepare_document(num, language, authors)
+
+        # TODO(jbg): Move the following into an overridden version of
+        # prepare_document
         if self._id:
             d.id = self._id
         else:
             d.id = num
-
         d.title = self._title
-
         d.language = language
-        tf_token = nltk.FreqDist()
-        for ii in self.tokens():
-            tf_token.inc(ii)
 
-        for aa, ss in self.author_turns():
+        for aa, ii in self.author_turns():
             s = d.sentences.add()
+
+            s = self.fill_sentence(s, ii, language, token_vocab, lemma_vocab,
+                                   pos, synsets, stemmer, bigram_vocab,
+                                   tf, df, bigram_list, bigram_normalize)
             s.author = authors[aa]
-            for ii in ss:
-                try:
-                    token = token_vocab[ii]
-                except KeyError:
-                    print "Bad token in document %s" % d.title
-                    continue
-                    
-                w = s.words.add()
-                w.token = token_vocab[ii]
-                w.lemma = lemma_vocab[stemmer(language, ii)]
-                w.tfidf = token_df.compute_tfidf(ii, tf_token.freq(ii))
         return d

@@ -27,9 +27,14 @@ class CorpusVocabWrapper:
         self.tokens = {}
         self.lemmas = {}
         self.pos = {}
+        self.bigrams = {}
         self.synsets = {}
+        self.filenames = cp.doc_filenames
 
         self.authors = parse_proto_vocab(cp.authors, {})
+
+        for ii in cp.bigrams:
+            self.bigrams[ii.language] = parse_proto_vocab(ii, {})
 
         for ii in cp.tokens:
             self.tokens[ii.language] = parse_proto_vocab(ii, {})
@@ -42,3 +47,9 @@ class CorpusVocabWrapper:
 
         for ii in cp.tokens:
             self.synsets[ii.language] = parse_proto_vocab(cp.synsets, {})
+
+    def docs(self, base):
+        d = Document()
+        for ii in self.filenames:
+            d.ParseFromString(open("%s/%s" % (base, ii), 'r').read())
+            yield d

@@ -67,6 +67,9 @@ class WackyDocument(DocumentReader):
             else:
                 yield ""
 
+    def num_sentences(self):
+        return len(self._sentences)
+
     def relations(self):
         num_sentences = max(self._sentences) + 1
         for ii in xrange(num_sentences):
@@ -137,8 +140,11 @@ class WackyCorpus(CorpusReader):
             elif ii.startswith("</s>"):
                 current_sentence += 1
             elif ii.startswith("</text>"):
-                if title and len(buffer) > 10:
-                    yield WackyDocument(lang, buffer, title)
+                wd = WackyDocument(lang, buffer, title)
+                print len(buffer), wd.num_sentences()
+                if wd.num_sentences() > 20:
+                    yield wd
+
                 buffer = defaultdict(list)
                 title = ""
             else:

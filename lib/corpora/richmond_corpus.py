@@ -13,10 +13,9 @@ flags.define_int("doc_limit", -1, "How many documents we add")
 if __name__ == "__main__":
   flags.InitFlags()
   corpus = PangLeeMovieCorpus(flags.base, flags.doc_limit)
-  corpus.add_language("*/subj.*", flags.response, ENGLISH)
-  print "got here"
+  corpus.add_language("*/subj.*", flags.response, DIXIE)
   corpus.write_proto(flags.output + "numeric", "richmond", 1000)
-  print "got here2"
+
   #corpus = PangLeeMovieCorpus(flags.base, flags.doc_limit)
   #corpus.add_language("filmrezension.de_lines/*/subj.*", flags.response, \
    #                     GERMAN)

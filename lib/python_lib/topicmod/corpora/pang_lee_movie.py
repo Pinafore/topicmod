@@ -12,11 +12,16 @@ class PangLeeMovie(AmazonDocument):
         self._rating = rating
         self._id = int(id_tag)
 
+    def language(self):
+        return self.lang
+
 
 class PangLeeMovieCorpus(CorpusReader):
 
     def add_language(self, pattern, response_pattern, language=ENGLISH):
-        for ii in glob(self._file_base + pattern):
+        search = self._file_base + pattern
+        print("Looking for %s" % search)
+        for ii in glob(search):
             self._files[language].add(ii)
 
         self._response = response_pattern

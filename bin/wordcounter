@@ -1,0 +1,32 @@
+#!/usr/bin/python 
+
+import sys
+from string import lower
+
+import nltk
+import codecs
+from nltk.corpus import wordnet as wn
+from nltk.corpus import stopwords
+from nltk import FreqDist
+
+default_stopwords = set(stopwords.words("english"))
+
+def morphy_stem(s):
+  first_try = wn.morphy(s)
+  if first_try:
+    return first_try
+  else:
+    return s
+
+if __name__ == "__main__":
+   files = sys.argv[1:]
+   
+   d = FreqDist()   
+
+   for ii in files:
+     for jj in map(lower, map(morphy_stem, nltk.word_tokenize(codecs.open(ii, 'r', 'utf-8').read()))):
+       if not jj in default_stopwords and len(jj) > 2:
+         d.inc(jj)
+
+   for ii in d:
+     print ii, d[ii]

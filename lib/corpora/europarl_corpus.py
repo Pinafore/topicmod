@@ -12,6 +12,7 @@ if __name__ == "__main__":
 
   for ii in xrange(96, 107):
     year = ii % 100
+    print " *** YEAR %i *** " % year
     corpus = EuroparlCorpus(flags.base, flags.doc_limit)
     corpus.add_language("english/ep-%02i-*.en" % year, ENGLISH)
     corpus.add_language("german/ep-%02i-*.de" % year, GERMAN)

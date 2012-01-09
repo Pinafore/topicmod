@@ -60,7 +60,7 @@ def blocking_job(max_jobs):
 
 
 # Takes a script name and a list of dependencies returns a job ID
-def qsub(script_name, max_jobs, dependency_list=[], submit=True):
+def qsub(script_name, max_jobs, queue='batch', dependency_list=[], submit=True):
 
     # There might be too many jobs on the cluster; we don't want to
     # monopolize, so we'll back off and wait for them to finish
@@ -74,7 +74,7 @@ def qsub(script_name, max_jobs, dependency_list=[], submit=True):
     if len(dependency_list) == 0:
         dependency_list = dependency_list
 
-    s = "qsub"
+    s = "qsub -S /bin/bash"
     if len(dependency_list) > 0:
         s += " -W depend=afterok"
         for i in dependency_list:
@@ -86,7 +86,7 @@ def qsub(script_name, max_jobs, dependency_list=[], submit=True):
 
     s += " " + script_name
     if CLUSTER_LOCATION == ".umiacs.umd.edu":
-        s += " -q batch"
+        s += " -q %s" % queue
 
     print "COMMAND:", s,
     val = ""
@@ -129,6 +129,7 @@ def write_file(d, template, delete, submit, max_jobs=25):
     if delete:
         print "deleted"
         os.remove(filename)
+    print(filename)
     print ""
 
 if __name__ == "__main__":
@@ -143,6 +144,7 @@ if __name__ == "__main__":
     flags.define_string("wall", "24:00:00", "The wall time")
     flags.define_string("name", "", "Name given to job on cluster")
     flags.define_string("mem", "4gb", "How much memory we give")
+    flags.define_string("queue", "shallow", "Which queue do we submit to")
     flags.define_int("max_jobs", 16, "Number of simultaneous jobs on cluster")
     flags.define_bool("delete_scripts", True, "Do we delete after we're done?")
     flags.define_bool("submit", True, "Do we submit")

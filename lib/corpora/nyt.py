@@ -1,4 +1,3 @@
-
 from topicmod.corpora.nyt_reader import *
 from topicmod.util import flags
 

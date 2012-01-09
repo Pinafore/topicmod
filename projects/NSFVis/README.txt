@@ -29,7 +29,7 @@ How to replace the NSFVis WAR file:
 1) Stop Tomcat:
 	/var/lib/UMtomcat6/itm/bin/catalina-wrapper.sh stop force
 2) Delete the old web app directory:
-	rm -r /var/lib/UMtomcat6/itm/webapps/NSFVis
+	rm -r /var/lib/UMtomcat6/itm/webapps/NSFVis*
 3) Copy the new WAR file:
 	cp <location>/NSFVis.war /var/lib/UMtomcat6/itm/webapps/
 4) Start Tomcat:

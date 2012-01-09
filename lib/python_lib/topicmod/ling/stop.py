@@ -21,9 +21,15 @@ class StopWords:
         except IOError:
             print "Falling back to NLTK stopwords", filename, "didn't work"
             self._stop[lang] = set(unicode(x) for x in stopwords.words(lang))
+
         return self._stop[lang]
 
     def __getitem__(self, lang):
         if not lang in self._stop:
-            self.load(lang)
+            try:
+                self.load(lang)
+            except IOError:
+                print(("Could not find language %s for stop list, " +
+                      "using English") % lang)
+                self._stop[lang] = self.load("english")
         return self._stop[lang]

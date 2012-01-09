@@ -22,7 +22,7 @@ endif
 PYTHON_COMMAND := PYTHONPATH="$$PYTHONPATH:../../lib/python_lib/" $(PYTHON_COMMAND)
 
 # Options for cpplint.py
-LINT_OPTIONS = --filter=-readability/casting,-readability/streams,-runtime/threadsafe_fn,-build/header_guard
+LINT_OPTIONS = --filter=-readability/casting,-readability/streams,-runtime/threadsafe_fn,-build/header_guard,-build/include
 
 # Look for an environment variable telling us to do code optimizations
 ifeq ($(OPTIMIZE_TOPICMOD),True)
@@ -125,18 +125,28 @@ $(MULTILINGUAL_SCRIPTS): $(WORDNET_PROTO_OUT) $(PROTO_OUT)
 	$(PYTHON_COMMAND) ../../lib/corpora/semcor.py --semcor_output=/tmp/`whoami`/semcor/numeric
 	mv /tmp/`whoami`/semcor/numeric ../../data/semcor/numeric
 
-../../data/20_news/numeric/20_news_0.index: ../../lib/corpora/20_news_corpus.py $(PYTHON_SOURCE)/corpora/flat.py $(PYTHON_SOURCE)/corpora/corpus_reader.py
-	mkdir -p /tmp/`whoami`/20_news/numeric/
-	mkdir -p ../../data/20_news/numeric
-	$(PYTHON_COMMAND) ../../lib/corpora/20_news_corpus.py --output=/tmp/`whoami`/20_news/
-	rm -r ../../data/20_news/numeric
-	mv /tmp/`whoami`/20_news/numeric ../../data/20_news/numeric
+../../data/duffy-word-sense/numeric/duffy_english_0.index: ../../lib/corpora/duffy.py $(PYTHON_SOURCE)/corpora/flat.py $(PYTHON_SOURCE)/corpora/corpus_reader.py
+	mkdir -p /tmp/`whoami`/duffy-word-sense/numeric/
+	mkdir -p ../../data/duffy-word-sense/numeric
+	$(PYTHON_COMMAND) ../../lib/corpora/duffy.py --output=/tmp/`whoami`/duffy-word-sense/ --doc_limit=-1
+	rm -r ../../data/duffy-word-sense/numeric
+	mv /tmp/`whoami`/duffy-word-sense/numeric ../../data/duffy-word-sense/numeric
+
+vocab/duffy.voc: $(MULTILINGUAL_SCRIPTS) ../../data/semcor/numeric ../../data/duffy-word-sense/numeric/duffy_english_0.index
+	mkdir -p vocab
+	mkdir -p wn
+	$(PYTHON_COMMAND) ../../lib/corpora/vocab.py --output=vocab/semcor.voc --corpus_parts=../../data/duffy-word-sense/numeric/*.index --min_freq=3
+	$(PYTHON_COMMAND) ../../lib/corpora/flat_tree_writer.py --output=wn/flat_movies.wn --source_words=vocab/movies.voc
+
+../../data/20_news_date/numeric/20_news_english_0.index: ../../lib/corpora/20_news_corpus.py $(PYTHON_SOURCE)/corpora/flat.py $(PYTHON_SOURCE)/corpora/corpus_reader.py
+	mkdir -p /tmp/`whoami`/20_news_date/numeric/
+	mkdir -p ../../data/20_news_date/numeric
+	$(PYTHON_COMMAND) ../../lib/corpora/20_news_corpus.py --output=/tmp/`whoami`/20_news_date/ --doc_limit=-1
+	rm -r ../../data/20_news_date/numeric
+	mv /tmp/`whoami`/20_news_date/numeric ../../data/20_news_date/numeric
 
 vocab/20_news.voc: # ../../data/20_news_date/numeric/20_news_0.index
 	mkdir -p vocab
-	mkdir -p output
-	mkdir -p output/20_news
-	mkdir -p output/20_news/model_topic_assign
 	$(PYTHON_COMMAND) ../../lib/corpora/vocab.py --output=vocab/20_news.voc --corpus_parts="../../data/20_news/numeric/20_news_*.index" --special_stop="nntppostinghost,get,use,know,like,say,see,also,want,one,would,say,make,think,new,replyto,2di,ax,edu,com,line,subject,re,post,nntp,time,university,organ,ca,uk,ll,ah,etc" --stem=True --vocab_limit=5000
 
 ../../data/values_turk/numeric/values_turk_english_0.index: ../../lib/corpora/values_turk.py $(PYTHON_SOURCE)/corpora/flat.py $(PYTHON_SOURCE)/corpora/corpus_reader.py
@@ -146,7 +156,7 @@ vocab/20_news.voc: # ../../data/20_news_date/numeric/20_news_0.index
 	rm -r ../../data/values_turk/numeric
 	mv /tmp/`whoami`/values_turk/numeric ../../data/values_turk/numeric
 
-vocab/values_turk.voc: ../../data/20_news_date/numeric/20_news_0.index
+vocab/values_turk.voc: ../../data/values_turk/numeric/values_turk_english_0.index
 	mkdir -p vocab
 	$(PYTHON_COMMAND) ../../lib/corpora/vocab.py --output=vocab/values_turk.voc --corpus_parts="../../data/values_turk/numeric/values_turk*.index" --stem=True --vocab_limit=10000 --min_freq=2
 
@@ -216,7 +226,7 @@ $(NYT_NUMERIC): ../../lib/corpora/nyt.py $(PYTHON_SOURCE)/corpora/corpus_reader.
 	rm -rf /tmp/`whoami`/nyt/numeric
 	mkdir -p /tmp/`whoami`/nyt/numeric
 	mkdir -p ../../data/new_york_times/numeric
-	$(PYTHON_COMMAND) ../../lib/corpora/nyt.py --output="/tmp/`whoami`/nyt/" --doc_limit=100
+	$(PYTHON_COMMAND) ../../lib/corpora/nyt.py --nyt_base="" --output=""
 	rm -rf ../../data/new_york_times/numeric/nyt_*
 	mv /tmp/`whoami`/nyt/numeric/nyt_* ../../data/new_york_times/numeric
 vocab/nyt.voc: $(NYT_NUMERIC)
@@ -227,12 +237,24 @@ vocab/nyt.voc: $(NYT_NUMERIC)
 	mkdir -p output/nyt/model_topic_assign/assign
 	$(PYTHON_COMMAND) ../../lib/corpora/vocab.py --output=vocab/nyt.voc --min_freq=10 --corpus_parts=../../data/new_york_times/numeric/nyt_english_*.index --stem=True --vocab_limit=5000
 
+
+CIVIL_WAR_NUMERIC = ../../data/rdd/numeric/richmond_english_0.index ../../data/RDD/numeric/nyt_english_0.index
+
+$(CIVIL_WAR_NUMERIC): ../../lib/corpora/civil_war.py $(PYTHON_SOURCE)/corpora/nyt_reader.py $(PYTHON_SOURCE)/corpora/pang_lee_movie.py ../../lib/corpora/richmond_corpus.py
+	mkdir -p /tmp/`whoami`/rdd/numeric
+	mkdir -p ../../data/rdd/numeric
+#	$(PYTHON_COMMAND) ../../lib/corpora/richmond_corpus.py --output=/tmp/`whoami`/rdd/ --doc_limit=500
+	$(PYTHON_COMMAND) ../../lib/corpora/civil_war.py --output=/tmp/`whoami`/rdd/ --doc_limit=1000 --response_file=../../data/new_york_times/civil_war/casualties.txt
+	mkdir -p ../../data/rdd/numeric
+	rm -rf ../../data/rdd/numeric/*
+	mv /tmp/`whoami`/rdd/numeric/* ../../data/rdd/numeric
+
 WACKYPEDIA_NUMERIC = ../../data/wackypedia/numeric/wpdia_english_0.index
 
 $(WACKYPEDIA_NUMERIC): ../../lib/corpora/wackypedia.py $(PYTHON_SOURCE)/corpora/corpus_reader.py $(PYTHON_SOURCE)/corpora/wacky.py
 	mkdir -p /tmp/`whoami`/wackypedia/numeric
 	mkdir -p ../../data/wackypedia/numeric:
-	$(PYTHON_COMMAND) ../../lib/corpora/wackypedia.py --doc_limit=5 --output="/tmp/`whoami`/wackypedia/"
+	$(PYTHON_COMMAND) ../../lib/corpora/wackypedia.py --doc_limit=500 --output="/tmp/`whoami`/wackypedia/"
 	rm -rf ../../data/wackypedia/numeric/wpdia*
 	mv /tmp/`whoami`/wackypedia/numeric/wpdia* ../../data/wackypedia/numeric
 

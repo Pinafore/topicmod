@@ -10,6 +10,7 @@ enum Language {
   FRENCH = 3;
   SPANISH = 4;
   ARABIC = 5;
+  DIXIE = 6;
 }
 
 message Vocab {

@@ -121,3 +121,11 @@ data/lda_movies.lda: ../../lib/corpora/ldac_format_writer.py $(MOVIES_NUMERIC)
 
 output/hellinger.pdf: scripts/hellinger.R
 	cat scripts/hellinger.R | R --no-save output/hellinger.pdf output/europarl/*/*True-False.hellinger
+
+vocab/civil_war.voc: $(CIVIL_WAR_NUMERIC) ../../lib/corpora/vocab.py $(PYTHON_SOURCE)/corpora/vocab_compiler.py
+	mkdir -p vocab
+	$(PYTHON_COMMAND) ../../lib/corpora/vocab.py --output=vocab/civil_war.voc --corpus_parts="../../data/rdd/numeric/*.index" --bigram=True --vocab_limit=5000
+
+intermediate_data/similarity.txt: vocab/civil_war.voc
+	mkdir -p intermediate_data
+	$(PYTHON_COMMAND) scripts/language_compare.py --corpus_parts="../../data/rdd/numeric/*.index" --output=intermediate_data/comp_usage.txt --bigram=True --vocab_input=vocab/civil_war.voc

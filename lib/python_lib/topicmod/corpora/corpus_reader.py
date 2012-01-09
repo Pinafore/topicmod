@@ -16,16 +16,28 @@ from nltk.tokenize import PunktWordTokenizer
 from topicmod.ling.snowball_wrapper import Snowball
 from topicmod.ling.stop import StopWords
 from topicmod.util.sets import poll_iterator
-from topicmod.ling.bigram_finder import BigramFinder, iterable_to_bigram
+from topicmod.ling.bigram_finder import BigramFinder, iterable_to_bigram, \
+    iterable_to_bigram_offset
 
 # Provides language IDs
-from proto.corpus_pb2 import *
+from proto.corpus_pb2 import Corpus, Document
+from proto.corpus_pb2 import ENGLISH, GERMAN, CHINESE, FRENCH, \
+    SPANISH, ARABIC, DIXIE
 
 # Lookup for the stopword corpus
 LANGUAGE_ID = {ENGLISH: "english", GERMAN: "german", CHINESE: "chinese", \
-               FRENCH: "french", SPANISH: "spanish", ARABIC: "arabic"}
+                   FRENCH: "french", SPANISH: "spanish", ARABIC: "arabic", \
+                   DIXIE: "english"}
 
-sent_tokenizer = nltk.data.load('tokenizers/punkt/english.pickle')
+sent_tokenizer = {}
+for ii in LANGUAGE_ID:
+    try:
+        sent_tokenizer[ii] = nltk.data.load('tokenizers/punkt/%s.pickle' % \
+                                                LANGUAGE_ID[ii])
+    except LookupError:
+        print("Error loading sentence tokenizer for %s" % LANGUAGE_ID[ii])
+        None
+
 word_tokenizer = PunktWordTokenizer()
 
 
@@ -50,9 +62,9 @@ class DocumentReader:
         """
         Returns an iterator over sentences.
         """
-        assert self.lang == ENGLISH
+        assert self.lang in sent_tokenizer, "%i lang missing" % self.lang
 
-        for ii in sent_tokenizer.tokenize(self._raw):
+        for ii in sent_tokenizer[self.lang].tokenize(self._raw):
             yield word_tokenizer.tokenize(ii)
 
     def raw(self):
@@ -71,6 +83,66 @@ class DocumentReader:
         if self.author != "":
             yield self.author
 
+    def prepare_document(self, num, language, authors):
+        """
+        The first step in creating a protocol buffer for a document;
+        filling any document specific information.  Also creates
+        a term frequency dictionary.
+        """
+        d = Document()
+
+        if self.author:
+            d.author = authors[self.author]
+        d.language = language
+
+        tf_token = nltk.FreqDist()
+        for ii in self.sentences():
+            for jj in ii:
+                tf_token.inc(jj)
+
+        return d, tf_token
+
+    def proto(self, num, language, authors, token_vocab, df, lemma_vocab,
+              pos, synsets, stemmer, bigram_vocab={}, bigram_list=None,
+              bigram_normalize=None):
+
+        d, tf = self.prepare_document(num, language, authors)
+
+        for ii in self.sentences():
+            s = d.sentences.add()
+
+            s = self.fill_sentence(s, ii, language, token_vocab, lemma_vocab,
+                                   pos, synsets, stemmer, bigram_vocab,
+                                   tf, df, bigram_list, bigram_normalize)
+
+        return d
+
+    def fill_sentence(self, sentence, sentence_tokens, language,
+                      token_vocab, lemma_vocab, pos, synsets, stemmer,
+                      bigram_vocab, tf, df, bigram_list, bigram_normalize):
+        """
+        A method to fill a sentence protocol buffer from source tokens.
+        """
+        bigrams = defaultdict(str)
+        if bigram_list:
+            for pp, ww in iterable_to_bigram_offset(sentence_tokens,
+                                                    bigram_list,
+                                                    bigram_normalize):
+                bigrams[pp] = ww
+
+        index = 0
+        for ii in sentence_tokens:
+            w = sentence.words.add()
+            w.token = token_vocab[ii]
+            w.lemma = lemma_vocab[stemmer(language, ii)]
+            w.tfidf = df.compute_tfidf(ii, tf.freq(ii))
+            if index in bigrams:
+                w.bigram = bigram_vocab[bigrams[index]]
+            else:
+                w.bigram = -1
+            index += 1
+        return sentence
+
     def synsets(self):
         return []
 
@@ -83,14 +155,9 @@ class DocumentReader:
         A list of all the tokens in the document
         """
 
-        if self.lang == ENGLISH:
-            for ii in sent_tokenizer.tokenize(self._raw):
-                for jj in word_tokenizer.tokenize(ii):
-                    yield jj
-        else:
-            for ii in wordpunct_tokenize(self._raw):
-                yield ii
-
+        for ii in self.sentences():
+            for jj in ii:
+                yield jj
 
 #  def tagged_tokens(self):
 #    """
@@ -235,8 +302,7 @@ class CorpusReader:
                 bf = BigramFinder(language=LANGUAGE_ID[ii])
                 self._bigram_finder[ii] = bf
                 bf.set_counts(self._word_freq[ii])
-
-            print("Finding bigrams")
+                print("Finding bigrams in language %i" % ii)
 
             doc = 0
             for ii in self:
@@ -247,11 +313,11 @@ class CorpusReader:
                 self._bigram_finder[lang].add_ngram_counts(ii.tokens())
 
             print("Scoring bigrams")
-            bf.find_ngrams([])
             bigrams = {}
 
             for lang in self._word_freq:
                 bf = self._bigram_finder[lang]
+                bf.find_ngrams([])
 
                 bigrams[lang] = bf.real_ngrams(self._bigram_limit)
                 print("First 10 bigrams")
@@ -267,9 +333,13 @@ class CorpusReader:
                 if doc % 100 == 0:
                     print("Doc %i / %i" % (doc, self._total_docs))
 
-                for jj in iterable_to_bigram(ii.tokens(), bigrams[lang],
-                                             bf.normalize_word):
-                    self._bigram_freq[lang].inc(jj)
+#                for jj in ii.tokens():
+#                    self._bigram_freq[lang].inc(jj)
+
+                for jj in ii.sentences():
+                    for kk in iterable_to_bigram(jj, bigrams[lang],
+                                                 bf.normalize_word):
+                        self._bigram_freq[lang].inc(kk)
 
     def init_stop(self):
         """
@@ -311,7 +381,7 @@ class CorpusReader:
                 else:
                     lookup[ll][tt] = word_id
 
-                if word_id < 50:
+                if word_id < 50 or (word_id < 1000 and "_" in word.ascii):
                     print("%s\t%i\t%s\t%s\t%i" % (name, word_id, word.ascii,
                                                   str(word.stop_word),
                                                   word.frequency))
@@ -322,7 +392,9 @@ class CorpusReader:
                                               vocab_generator, lookup, name):
         word_id = 0
         for tt in frequency_count:
-            word = vocab_generator.add()
+            if not tt:
+                continue
+            word = vocab_generator()
             word.id = word_id
             word.original = tt
             word.ascii = tt.encode("ascii", "replace")
@@ -431,7 +503,7 @@ class CorpusReader:
                 doc_id += 1
                 doc_num += 1
 
-            # We don't want to mix languages, so we close out each section when we're
+            # We don't want to mix languages, so we close out each section when
             # done with a language
 
             if doc_num > 0:
@@ -439,7 +511,8 @@ class CorpusReader:
                 section = self.new_section()
                 doc_num = 0
                 section_num += 1
-                filename = "%s/%s_%s_%i" % (path, name, LANGUAGE_ID[lang], section_num)
+                filename = "%s/%s_%s_%i" % (path, name, LANGUAGE_ID[lang],
+                                            section_num)
                 if not os.path.exists(filename):
                     os.mkdir(filename)
             print doc_id, " files written"

@@ -1,12 +1,10 @@
 from glob import glob
 import codecs
+import random
 
 from proto.corpus_pb2 import *
 from corpus_reader import CorpusReader
 from corpus_reader import DocumentReader
-import random
-
-import nltk
 
 
 class AmazonDocument(DocumentReader):
@@ -40,9 +38,9 @@ class AmazonDocument(DocumentReader):
         # Normalize
         self._raw = self._raw.lower()
 
-    def proto(self, num, language, authors, token_vocab, token_df, lemma_vocab,
-              pos, synsets, stemmer):
-        d = Document()
+    def prepare_document(self, num, language, authors):
+        d, tf = DocumentReader.prepare_document(self, num, language, authors)
+
         assert language == self.lang
 
         # Use the given ID if we have it
@@ -50,23 +48,13 @@ class AmazonDocument(DocumentReader):
             d.id = self._id
         else:
             d.id = num
+        d.rating = self._rating
 
         d.language = language
         d.author = authors[self.author]
-        d.rating = self._rating
         # Maybe split into sentences at some point?
 
-        tf_token = nltk.FreqDist()
-        for ii in self.tokens():
-            tf_token.inc(ii)
-
-        s = d.sentences.add()
-        for ii in self.tokens():
-            w = s.words.add()
-            w.token = token_vocab[ii]
-            w.lemma = lemma_vocab[stemmer(language, ii)]
-            w.tfidf = token_df.compute_tfidf(ii, tf_token.freq(ii))
-        return d
+        return d, tf
 
     def add_langauge(self, pattern, response_pattern, language=ENGLISH):
         self._response = response_pattern

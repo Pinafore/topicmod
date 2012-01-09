@@ -1,27 +1,24 @@
 # Adapted from nlp
 
-import sys
-
 from glob import glob
-from random import shuffle, seed, random
-from string import strip
-from threading import Thread
-from time import sleep, time
+import os
 
-from topicmod.corpora.corpus_reader import *
+from topicmod.corpora.corpus_reader import DocumentReader, CorpusReader
 from topicmod.ling.tokens import tokens
-from topicmod.ling.bigram_finder import iterable_to_bigram_offset
+from proto.corpus_pb2 import ENGLISH
 
 from collections import defaultdict
 
 DATE_TYPES = {"publication_month": "month", "publication_day_of_month": "day",
-              "publication_year": "year"}
+              "publication_year": "year", "pdm": "month", "pdy": "year",
+              "pdd": "day"}
 
 # Use the c version of ElementTree, which is faster, if possible:
-try:
-    from lxml.etree import cElementTree as ElementTree
-except ImportError:
-    from nltk.etree import ElementTree
+#try:
+#    from lxml.etree import cElementTree as ElementTree
+#except ImportError:
+#    from nltk.etree import ElementTree
+from nltk.etree import ElementTree
 
 
 class NewYorkTimesDocument(DocumentReader):
@@ -55,7 +52,10 @@ class NewYorkTimesDocument(DocumentReader):
                             int(x.attrib["content"])) \
                                for x in raw.findall("head/meta") \
                                if x.attrib["name"] in DATE_TYPES])
-        #print "DATE", self.date_
+        for ii in DATE_TYPES:
+            for jj in raw.findall(ii):
+                self.date_[DATE_TYPES[ii]] = int(jj.text)
+
         self.byline_ = [x.text for x in raw.findall("body/body.head/byline")
                         if x.attrib["class"] == "normalized_byline"]
 
@@ -75,17 +75,23 @@ class NewYorkTimesDocument(DocumentReader):
 
         self.people_tokens_ = set(self.people_tokens_)
 
-        try:
-            body = [x for x in raw.findall("body/body.content/block")
-                    if x.attrib["class"] == "full_text"][0]
+        body = [x for x in raw.findall("body/body.content/block")
+                if x.attrib["class"] == "full_text"]
 
-            self.paras_ = [pp.text for pp in body.findall("p")]
-        except IndexError:
-            # There are sometimes only headlines
-            self.paras_ = []
+        for ii in raw.findall("txt"):
+            body.append(ii)
 
-        def num_paragraphs(self):
-            return len(self.paras_)
+        self.paras_ = []
+        for ii in body:
+            if "<p>" in ii.text:
+                for jj in ii.text.split("<p>"):
+                    self.paras_.append(jj.replace("</p>", ""))
+            else:
+                for pp in ii.findall("p"):
+                    self.paras_.append(pp.text)
+
+    def num_paragraphs(self):
+        return len(self.paras_)
 
     def paragraph_tokens(self, para, remove_people=False):
         for ii in tokens(self.paras_[para]):
@@ -95,49 +101,28 @@ class NewYorkTimesDocument(DocumentReader):
                 yield ii
         return
 
-    def proto(self, num, language, authors, token_vocab, df, lemma_vocab,
-              pos, synsets, stemmer, bigram_vocab={}, bigram_list=None,
-              bigram_normalize=None):
-        d = Document()
-        assert language == self.lang
-        d.id = num
-
-        if self.author:
-            d.author = authors[self.author]
-        d.language = language
-        d.title = self.filename_ + "\t" + self.title_
+    def prepare_document(self, num, language, authors):
+        d, tf = DocumentReader.prepare_document(self, num, language, authors)
 
         d.date.day = self.date_["day"]
         d.date.month = self.date_["month"]
         d.date.year = self.date_["year"]
+        d.rating = self.rating
 
-        tf_token = nltk.FreqDist()
+        assert language == self.lang
+        d.id = num
+        d.title = self.filename_ + "\t" + self.title_
+
+        return d, tf
+
+    def sentences(self):
+        """
+        This isn't really sentences, but as close as we can get without doing
+        breaking of our own.
+        """
         for ii in xrange(len(self.paras_)):
-            for jj in self.paragraph_tokens(ii):
-                tf_token.inc(jj)
-
-        for ii in xrange(len(self.paras_)):
-            s = d.sentences.add()
-
-            bigrams = defaultdict(str)
-            if bigram_list:
-                tokens = self.paragraph_tokens(ii)
-                for pp, ww in iterable_to_bigram_offset(tokens, bigram_list,
-                                                        bigram_normalize):
-                    bigrams[pp] = ww
-
-            index = 0
-            for jj in self.paragraph_tokens(ii):
-                w = s.words.add()
-                w.token = token_vocab[jj]
-                w.lemma = lemma_vocab[stemmer(language, jj)]
-                w.tfidf = df.compute_tfidf(jj, tf_token.freq(jj))
-                if index in bigrams:
-                    w.bigram = bigram_vocab[bigrams[index]]
-                else:
-                    w.bigram = -1
-                index += 1
-        return d
+            sent = [x for x in self.paragraph_tokens(ii)]
+            yield sent
 
     def tokens(self, remove_people=False):
         for ii in xrange(len(self.paras_)):
@@ -166,3 +151,42 @@ class NewYorkTimesReader(CorpusReader):
 
     def doc_factory(self, lang, filename):
         yield NewYorkTimesDocument(filename, lang)
+
+
+class NewYorkTimesResponseReader(NewYorkTimesReader):
+
+    def __init__(self, base, response_file, doc_limit=-1, bigram_limit=-1):
+        NewYorkTimesReader.__init__(self, base, doc_limit, bigram_limit)
+        self.read_response(response_file)
+
+    def read_response(self, filename):
+        self._responses = defaultdict(dict)
+        for x in [x.split() for x in open(filename)]:
+            year, month, day, val = x
+            self._responses[(int(year), int(month))][int(day)] = float(val)
+
+    def lookup(self, year, month, day):
+        date = (year, month)
+        candidates = [x for x in self._responses[date] if x <= day]
+
+        if len(candidates) == 0:
+            if month > 1:
+                date = (year, month - 1)
+            else:
+                date = (year - 1, 12)
+
+            if date in self._responses:
+                candidates = self._responses[date]
+            else:
+                return 0.0
+        if len(candidates) == 0:
+            return -1
+        else:
+            candidate = max(candidates)
+            return self._responses[date][candidate]
+
+    def doc_factory(self, lang, filename):
+        d = NewYorkTimesDocument(filename, lang)
+        d.rating = self.lookup(d.date_["year"], d.date_["month"],
+                               d.date_["day"])
+        yield d

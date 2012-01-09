@@ -109,9 +109,11 @@ class EuroparlCorpus(DocAlignedReader):
 
             self._doc_alignment[universal_name][language] = ii
 
-    def doc_factory(self, lang, filename):
-        chap = 0
-        print "READING", filename
-        for ii in self._europarl.chapters(filename):
-            yield EuroparlDocument(filename, lang, chap, ii)
-            chap += 1
+  def doc_factory(self, lang, filename):
+    chap = 0
+    try:
+      for ii in self._europarl.chapters(filename):
+        yield EuroparlDocument(filename, lang, chap, ii)
+        chap += 1
+    except AssertionError:
+      print "Error with file %s" % filename

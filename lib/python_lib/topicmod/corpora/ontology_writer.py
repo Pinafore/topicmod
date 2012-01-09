@@ -529,13 +529,15 @@ def generateCannotLinks(cl_ml_merged, graph):
                 new_clique = clique_remained
                 link_type = "NL_"
             elif len(clique_remained) == 0 and len(ml_new) == 1:
-                new_clique = ml_new[0]
+                new_clique = list[ml_new[0]]
                 link_type = "ML_"
             else:
                 new_clique = []
+                #link_type = "NL_"
                 link_type = "NL_IN_"
                 for ml_clique in ml_new:
-                    new_clique.append(["ML_", ml_clique])
+                    tmp_list = list(ml_clique)
+                    new_clique.append(["ML_", tmp_list])
                 if len(clique_remained) > 0:
                     new_clique.append(["NL_", clique_remained])
             new_cons.append([link_type, new_clique])
@@ -550,7 +552,8 @@ def generateMustLinks(ml):
     ml_updated = []
     for index in range(len(ml)):
         link_type = "ML_"
-        new_cons = [link_type, ml[index]]
+        cons = list(ml[index])
+        new_cons = [link_type, cons]
         ml_updated.append(new_cons)
 
     return ml_updated
@@ -592,31 +595,41 @@ def mergeAllConstraints(ml, cl):
     return ml_updated, cl_updated
 
 
+def getCliqueCount(cons, constraints_count):
+    #if len(cons) == 1:
+    #    for word in cons:
+    #        if word not in constraints_count.keys():
+    #            constraints_count[word] = 1
+    #        else:
+    #            constraints_count[word] += 1
+    #else:
+    #    for clique in cons[1]:
+    #        constraints_count = getCliqueCount(clique, constraints_count)
+
+    if re.search('ML_', cons[0]) or re.search('NL_', cons[0]) \
+           or re.search('CL_', cons[0]):
+        for clique in cons[1]:
+            constraints_count = getCliqueCount(clique, constraints_count)    
+    else:
+        word = cons
+        if word not in constraints_count.keys():
+            constraints_count[word] = 1
+        else:
+            constraints_count[word] += 1
+
+    return constraints_count
+
+
 def getConstraintCount(ml_updated, cl_updated):
     # both cl_updated and ml_remained has a link_type
     constraints_count = defaultdict()
     for cons in ml_updated:
-        for word in cons[1]:
-            if word not in constraints_count.keys():
-                constraints_count[word] = 1
-            else:
-                constraints_count[word] += 1
+        constraints_count = getCliqueCount(cons, constraints_count)
 
     for cons in cl_updated:
-        for clique in cons[1]:
-            if re.search("NL_IN_", clique[0]):
-                for cli in clique[1]:
-                    for word in cli[1]:
-                        if word not in constraints_count.keys():
-                            constraints_count[word] = 1
-                        else:
-                            constraints_count[word] += 1
-            else:
-                for word in clique[1]:
-                    if word not in constraints_count.keys():
-                        constraints_count[word] = 1
-                    else:
-                        constraints_count[word] += 1
+        constraints_count = getCliqueCount(cons, constraints_count)
+
+    print "Constraints count: ", constraints_count
 
     return constraints_count
 
@@ -652,7 +665,124 @@ def write_constraints_test():
     remained_words = list(x for x in vocab if not (x in constraint_words))
 
 
+def write_leaf(cons, current_index, leaf_count, allocated_index, o, constraints_count):
+    current_index += 1
+    wordset = []
+    lang = ENGLISH
+    for word in cons[1]:
+        if word not in constraints_count.keys():
+            num = 1.0
+        else:
+            num = 1.0 / constraints_count[word]
+        wordset.append((lang, word, num))
+
+    #name = cons[0] + "%s" % (":".join(cons[1][:20]))
+    name = cons[0]
+    o.AddSynset(current_index, name, [], wordset)
+
+    return current_index, leaf_count, allocated_index
+
+
+def write_internal_nodes(cons, current_index, leaf_count, allocated_index, o, constraints_count):
+
+    if not (re.search('^NL_IN_$', cons[0]) or re.search('^CL_$', cons[0])):
+        [current_index, leaf_count, allocated_index] = \
+        write_leaf(cons, current_index, leaf_count, allocated_index, o, constraints_count)
+        return current_index, leaf_count, allocated_index
+
+    current_index += 1
+    name = cons[0]
+    child_count = len(cons[1])
+    start = allocated_index + 1
+    o.AddSynset(current_index, name, xrange(start, start + child_count), [])
+    allocated_index += child_count
+    child_index = start - 1
+
+    for clique in cons[1]:
+        [child_index, leaf_count, allocated_index] = \
+        write_internal_nodes(clique, child_index, leaf_count, allocated_index, o, constraints_count)
+
+    return current_index, leaf_count, allocated_index
+
+
 def write_constraints():
+    flags.InitFlags()
+
+    # read in vocab
+    vocab = getVocab(flags.vocab)
+    print "Read vocabulary"
+
+    # read in constraints
+    ml_cons, cl_cons = readConstraints(flags.constraints)
+
+    # Merge constraints
+    if flags.merge_constraints:
+        ml_updated, cl_updated = mergeAllConstraints(ml_cons, cl_cons)
+    #else:
+    #       ml_updated = map(lambda x: ['ML_', set(x)], ml)
+    #       cl_updated = map(lambda x: ['CL_', set(x)], cl)
+    print ml_updated
+    print cl_updated
+	
+    # Constraints counts
+    constraints_count = getConstraintCount(ml_updated, cl_updated)
+
+    # get constraint vocab
+    constraint_words = constraints_count.keys()
+
+    # Check constraints
+    check = list(x for x in constraint_words if x not in vocab)
+    assert not check, "Constraints were not in vocab: %s" % ", ".join(check)
+
+    # Remained word list
+    remained_words = list(x for x in vocab if not (x in constraint_words))
+
+    #########################################################
+    print flags.wnname
+    wnname = flags.wnname
+    o = OntologyWriter(wnname)
+
+    if len(remained_words) > 0:
+        # +1 is for one synset for the unconstratined words
+        num_children = len(ml_updated) + len(cl_updated) + 1
+    else:
+        num_children = len(ml_updated) + len(cl_updated)
+
+
+    o.AddSynset(0, "ROOT", xrange(1, num_children + 1), [])
+    allocated_index = num_children
+
+    rootchild_index = 0
+    leaf_count = 0
+
+    # Add ML constraints
+    for cons in ml_updated:
+        [rootchild_index, leaf_count, allocated_index] = write_internal_nodes\
+        (cons, rootchild_index, leaf_count, allocated_index, o, constraints_count)
+
+    # Add CL constraints
+    for cons in cl_updated:
+        [rootchild_index, leaf_count, allocated_index] = write_internal_nodes\
+        (cons, rootchild_index, leaf_count, allocated_index, o, constraints_count) 
+
+    # Add Unused words
+    if len(remained_words) > 0:
+        remained = ["NL_REMAINED_", remained_words]
+        [rootchild_index, leaf_count, allocated_index] = write_leaf\
+        (remained, rootchild_index, leaf_count, allocated_index, o, constraints_count)
+
+    print ("Added %i total nodes for vocab" % rootchild_index)
+
+    assert rootchild_index == num_children, "Mismatch of children %i %i" \
+                   % (rootchild_index, num_children)
+
+    print "Number of leaves:", leaf_count
+
+    # Add root
+    o.Finalize()
+
+
+def write_constraints_old():
     flags.InitFlags()
 
     # read in vocab
