@@ -13,6 +13,7 @@ from topicmod.corpora.proto.corpus_pb2 import *
 
 flags.define_int("limit", 250, "How many items in our MuTo matching")
 flags.define_bool("dictionary", False, "Use a dictionary")
+flags.define_string("dic_dir", "../../data/dictionaries/", "Use a dictionary")
 flags.define_bool("translation", False, "Use translation matrix")
 flags.define_bool("greedy_matching", False, "Use a matching from dictionary")
 flags.define_bool("wordnet", False, "Use WordNet as scaffold")
@@ -25,6 +26,9 @@ flags.define_string("filter_vocab", "", "Filter entries based on vocabulary")
 flags.define_bool("stem", False, "Stem words")
 flags.define_bool("id_strings", False, "Add identical strings")
 
+# generate an updated vocab: note not all the words in the original vocab will be included 
+# in the generated wordnet, generate a new vocab only contains the words in the wordnet.
+flags.define_string("updated_vocab", "", "generate a new vocab")
 
 def greedy_german_matching(filter_list, limit, stem):
   stemmer = Snowball()
@@ -124,20 +128,24 @@ def writeTranslatedWN(mapping, output, balanced=True):
   o.Finalize()
 
 
-def writeTranslations(mapping, output):
+def writeTranslations(mapping, output, updated_vocab):
   """
   Takes a dictionary where the primary keys are words in one language and the
   secondary keys are other languages.  Creates a WordNet that's very bushy with
   the primary keys as nodes that are the parents on all the children.
   """
-
-  synset = 0
   o = OntologyWriter(output)
-  o.AddSynset(len(mapping), "ROOT", xrange(len(mapping)), [])
+  #synset = 0
+  #o.AddSynset(len(mapping), "ROOT", xrange(len(mapping)), [])
+
+  synset = 1
+  o.AddSynset(0, "ROOT", xrange(1, len(mapping) + 1), [])
+
   for ii in mapping:
     words = []
     num_words = sum(len(mapping[ii][x]) for x in mapping[ii])
     smoothing = 1.0 / num_words
+
     for lang in mapping[ii]:
       words += [(lang, x, smoothing) for x in mapping[ii][lang]]
 
@@ -149,8 +157,24 @@ def writeTranslations(mapping, output):
     except ValueError:
       print "ERROR", ii, words
   print "DONE!", synset, len(mapping)
-  assert(synset <= len(mapping))
+  #assert(synset <= len(mapping))
+  assert(synset <= (len(mapping)+1))
   o.Finalize()
+
+
+
+def updateVocab(mapping, updated_vocab):
+
+  vocab = open(updated_vocab, 'w')
+
+  for ii in mapping:
+    for lang in mapping[ii]:
+      for x in mapping[ii][lang]:
+        tmp = str(lang) + '\t' + x + '\n'
+        print x
+        vocab.write(unicode(tmp).encode('utf-8'))
+
+  vocab.close()
 
 
 class Mapping:
@@ -213,7 +237,7 @@ def filterDictionary(d, filter):
     return d
 
 
-def createDictionary(dictionary, translation, langs, stem):
+def createDictionary(dictionary, dicname, translation, langs, stem):
 
   d = defaultdict(Mapping)
   stemmer = Snowball()
@@ -225,10 +249,10 @@ def createDictionary(dictionary, translation, langs, stem):
 
       # choose dictionary
       if GERMAN in langs:
-        chinese_lookup = CedictEntries(language="de")
+        chinese_lookup = CedictEntries(dicname, "de")
         target_lang = GERMAN
       else:
-        chinese_lookup = CedictEntries(language="en")
+        chinese_lookup = CedictEntries(dicname, "en")
         target_lang = ENGLISH
 
       for ii in chinese_lookup:
@@ -303,7 +327,7 @@ if __name__ == "__main__":
       assert flags.german and not flags.chinese
       mapping = greedy_german_matching(filter_list, flags.limit, flags.stem)
   else:
-      mapping = createDictionary(flags.dictionary, flags.translation, langs,
+      mapping = createDictionary(flags.dictionary, flags.dic_dir, flags.translation, langs,
                                  flags.stem)
 
       if flags.filter_vocab:
@@ -312,4 +336,7 @@ if __name__ == "__main__":
   if flags.wordnet:
     writeTranslatedWN(mapping, flags.output)
   else:
-    writeTranslations(mapping, flags.output)
+    writeTranslations(mapping, flags.output, flags.updated_vocab)
+
+  if flags.updated_vocab != "":
+    updateVocab(mapping, flags.updated_vocab)

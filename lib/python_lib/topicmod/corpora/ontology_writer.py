@@ -529,7 +529,7 @@ def generateCannotLinks(cl_ml_merged, graph):
                 new_clique = clique_remained
                 link_type = "NL_"
             elif len(clique_remained) == 0 and len(ml_new) == 1:
-                new_clique = list[ml_new[0]]
+                new_clique = list(ml_new[0])
                 link_type = "ML_"
             else:
                 new_clique = []

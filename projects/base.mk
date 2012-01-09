@@ -147,7 +147,7 @@ vocab/duffy.voc: $(MULTILINGUAL_SCRIPTS) ../../data/semcor/numeric ../../data/du
 
 vocab/20_news.voc: # ../../data/20_news_date/numeric/20_news_0.index
 	mkdir -p vocab
-	$(PYTHON_COMMAND) ../../lib/corpora/vocab.py --output=vocab/20_news.voc --corpus_parts="../../data/20_news/numeric/20_news_*.index" --special_stop="nntppostinghost,get,use,know,like,say,see,also,want,one,would,say,make,think,new,replyto,2di,ax,edu,com,line,subject,re,post,nntp,time,university,organ,ca,uk,ll,ah,etc" --stem=True --vocab_limit=5000
+	$(PYTHON_COMMAND) ../../lib/corpora/vocab.py --output=vocab/20_news.voc --corpus_parts="../../data/20_news_date/numeric/20_news_*.index" --special_stop="nntppostinghost,get,use,know,like,say,see,also,want,one,would,say,make,think,new,replyto,2di,ax,edu,com,line,subject,re,post,nntp,time,university,organ,ca,uk,ll,ah,etc" --stem=True --vocab_limit=5000
 
 ../../data/values_turk/numeric/values_turk_english_0.index: ../../lib/corpora/values_turk.py $(PYTHON_SOURCE)/corpora/flat.py $(PYTHON_SOURCE)/corpora/corpus_reader.py
 	mkdir -p /tmp/`whoami`/values_turk/numeric/

@@ -352,11 +352,12 @@ if __name__ == "__main__":
     exit()
 
   # Copy the parameter information and the document id
-  for ext in ["params"]:
-    shutil.copyfile("%s.%s" % (flags.input_base, ext), "%s.%s" % \
-                              (flags.output_base, ext))
+  if flags.input_base != flags.output_base:
+    for ext in ["params"]:
+      shutil.copyfile("%s.%s" % (flags.input_base, ext), "%s.%s" % \
+                                (flags.output_base, ext))
 
-  for ext in ["lhood", "param_hist"]:
-    inputfile = "%s.%s" % (flags.input_base, ext)
-    if os.path.exists(inputfile):
-      shutil.copyfile(inputfile, "%s.%s" % (flags.output_base, ext))
+    for ext in ["lhood", "param_hist"]:
+      inputfile = "%s.%s" % (flags.input_base, ext)
+      if os.path.exists(inputfile):
+        shutil.copyfile(inputfile, "%s.%s" % (flags.output_base, ext))
