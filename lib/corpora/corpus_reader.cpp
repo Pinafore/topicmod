@@ -246,8 +246,10 @@ bool CorpusReader::AddWord(const Document_Sentence_Word& word,
   int token = word.token();
   if (use_lemma_ && word.has_lemma()) token = word.lemma();
   if (use_bigram_) {
-    if (word.bigram() == -1) return false;
-    else token = word.bigram();
+    if (word.bigram() == -1)
+      return false;
+    else
+      token = word.bigram();
   }
   if (vocab.find(token) == vocab.end()) return false;
   int normalized_token = vocab.find(token)->second;
