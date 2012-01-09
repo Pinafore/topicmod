@@ -1,0 +1,71 @@
+
+option java_outer_classname = "ProtoCorpus";
+
+package lib_corpora_proto;
+
+enum Language {
+  ENGLISH = 0;
+  GERMAN = 1;
+  CHINESE = 2;
+  FRENCH = 3;
+  SPANISH = 4;
+  ARABIC = 5;
+}
+
+message Vocab {
+  message Entry {
+    required int32 id = 1;
+    required string original = 2;
+    optional string ascii = 3;
+    optional int32 external_id = 4;
+    optional int32 frequency = 5;
+    optional bool stop_word = 6[default = false];
+  }
+  repeated Entry terms = 1;
+  optional Language language = 2;
+}
+
+message Corpus {
+  repeated string doc_filenames = 1;
+  // One vocabulary for each language
+  repeated Vocab tokens = 2;
+  repeated Vocab pos = 3;
+  optional Vocab authors = 4;
+  optional Vocab synsets = 5;
+  repeated Vocab lemmas = 6;
+  repeated Vocab bigrams = 8;
+
+  optional int32 num_topics = 7;
+}
+
+message Document {
+  message Sentence {
+    message Word {
+      required int32 token = 1;
+      optional int32 lemma = 2 [default = -1];
+      optional int32 pos = 3 [default = -1];
+      optional int32 parent = 4 [default = -1];
+      optional int32 synset = 5 [default = -1];
+      optional int32 topic = 6 [default = -1];
+      optional float tfidf = 7 [default = -1];
+      optional int32 offset = 8 [default = -1];
+      optional int32 relation = 9 [default = -1];
+      optional int32 bigram = 10 [default = -1];
+    }
+    repeated Word words = 1;
+    optional int32 author = 2;
+  }
+  repeated Sentence sentences = 1;
+  required int32 id = 2;
+  optional Language language = 3;
+  optional int32 author = 4;
+  optional string title = 5;
+  optional double rating = 6;
+
+  message Time {
+    optional int32 day = 1 [default = -1];
+    optional int32 month = 2 [default = -1];
+    required int32 year = 3 [default = -1];
+  }
+  optional Time date = 7;
+}

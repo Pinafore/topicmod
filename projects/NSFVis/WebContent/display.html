@@ -1,0 +1,72 @@
+<!DOCTYPE html PUBLIC "-//W3C//DTD HTML 4.01 Transitional//EN" "http://www.w3.org/TR/html4/loose.dtd">
+
+<html>
+  <head>
+    <title>Protovis Demo</title>
+    <link type="text/css" rel="stylesheet" href="ex.css"/>
+    <script type="text/javascript" src="js/libs/protovis-d3.2.js"></script>
+	<script type="text/javascript" src="js/libs/jquery-1.4.2.js"></script>
+	<script type="text/javascript" src="js/libs/blockui.js"></script>   	    
+    <script type="text/javascript" src="js/globals.js"></script>
+    <script type="text/javascript" src="js/colors.js"></script>    
+    <script type="text/javascript" src="js/document.js"></script>    
+    <script type="text/javascript" src="js/stacked.js"></script>
+    <script type="text/javascript" src="js/grid.js"></script>    
+    <script type="text/javascript" src="js/legend.js"></script>
+    <script type="text/javascript" src="js/page.js"></script>              
+
+
+  </head>
+  <body>
+  
+  <h1>Protovis Demo</h1>
+  
+  <table><tr>
+  	<td><a href="javascript:selectGrid()">Grid View</a></td>
+  	<td><a href="javascript:selectStacked()">Area Chart View</a></td>
+  </tr></table>
+  
+  <div id="center">
+  
+	<table class="table">
+	<tr>
+		<td id="areaTD">
+			<div id="stacked">
+			<h2 class="headline">Area Chart</h2>
+			<div id="stackedVis"></div>
+   			</div>
+   			
+   			<div id="grid">
+   			<h2 class="headline">Grid Chart</h2>
+			<div id="gridVis"></div>
+   			</div>
+		</td>
+		<td id="selectTD">
+			<h2 class="headline">Select/Deselect</h2>
+			<div id="legendVis"></div>
+		</td>	
+	</tr>	
+
+	<tr>
+		<td colspan="2" id="docTD">
+			<h2 class="headline">Document Details</h2>
+			<div id="documentText" class="headline"></div>
+			<div id="documentVis"></div>
+		</td>
+	</tr>
+	
+	</table>
+  
+</div>
+
+	<script type="text/javascript+protovis">
+
+	// this function is part of page.js
+	$(document).ready(doAjax);
+	
+	</script>
+  
+  </body>
+</html>
+
+
