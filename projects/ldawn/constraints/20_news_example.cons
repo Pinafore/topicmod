@@ -1,1 +1,2 @@
-MERGE_	car	engine
+SPLIT_	image	space
+MERGE_	image	jpeg
