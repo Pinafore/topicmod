@@ -1,0 +1,1 @@
+Topic models are statistical models of text.  This package implements a number of topic models based on latent Dirichlet allocation (LDA).
