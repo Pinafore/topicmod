@@ -26,9 +26,11 @@ flags.define_string("filter_vocab", "", "Filter entries based on vocabulary")
 flags.define_bool("stem", False, "Stem words")
 flags.define_bool("id_strings", False, "Add identical strings")
 
-# generate an updated vocab: note not all the words in the original vocab will be included 
-# in the generated wordnet, generate a new vocab only contains the words in the wordnet.
+# generate an updated vocab: note not all the words in the original
+# vocab will be included  in the generated wordnet, generate a new
+# vocab only contains the words in the wordnet.
 flags.define_string("updated_vocab", "", "generate a new vocab")
+
 
 def greedy_german_matching(filter_list, limit, stem):
   stemmer = Snowball()
@@ -158,13 +160,11 @@ def writeTranslations(mapping, output, updated_vocab):
       print "ERROR", ii, words
   print "DONE!", synset, len(mapping)
   #assert(synset <= len(mapping))
-  assert(synset <= (len(mapping)+1))
+  assert(synset <= (len(mapping) + 1))
   o.Finalize()
 
 
-
 def updateVocab(mapping, updated_vocab):
-
   vocab = open(updated_vocab, 'w')
 
   for ii in mapping:
@@ -327,8 +327,8 @@ if __name__ == "__main__":
       assert flags.german and not flags.chinese
       mapping = greedy_german_matching(filter_list, flags.limit, flags.stem)
   else:
-      mapping = createDictionary(flags.dictionary, flags.dic_dir, flags.translation, langs,
-                                 flags.stem)
+      mapping = createDictionary(flags.dictionary, flags.dic_dir,
+                                 flags.translation, langs, flags.stem)
 
       if flags.filter_vocab:
           mapping = filterDictionary(mapping, filter_list)
